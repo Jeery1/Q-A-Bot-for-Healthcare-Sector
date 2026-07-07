@@ -1,13 +1,13 @@
 """
-Safety filter for shipbuilding QA system.
+Safety filter for healthcare QA system.
 Blocks out-of-domain and sensitive questions before they reach the LLM.
 """
 
 SAFETY_KEYWORDS = {
     "sensitive": [
-        "拆除安全装置", "绕过安全规范", "关闭报警", "屏蔽传感器",
-        "禁用安全系统", "跳过检测", "伪造证书", "非法改装",
-        "破坏设备", "制造事故", "恶意代码", "入侵系统",
+        "非法行医", "无证行医", "假处方", "病人隐私",
+        "器官交易", "违禁药物", "伪造病历", "教唆自残",
+        "自杀方法", "毒品制作",
     ],
     "out_of_domain": [
         "天气", "股票", "电影", "美食", "体育", "音乐",
@@ -15,7 +15,7 @@ SAFETY_KEYWORDS = {
     ],
 }
 
-SAFETY_RESPONSE = "抱歉，我无法回答该问题。请咨询船舶建造相关的技术问题。"
+SAFETY_RESPONSE = "抱歉，我无法回答该问题。请咨询健康与医疗相关的问题。"
 
 
 def contains_keyword(text: str, keywords: list[str]) -> bool:

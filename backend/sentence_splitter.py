@@ -8,8 +8,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-_SENTENCE_CHARS = re.compile(r'[。！？]$')
-_SENTENCE_SPLIT = re.compile(r'(?<=[。！？])')
+_SENTENCE_CHARS = re.compile(r'[。！？；;]$')
+_SENTENCE_SPLIT = re.compile(r'(?<=[。！？；;])')
 
 _FORCE_SPLITTERS = ['\n\n', '\n', '；', '，', '、', '：', '）', ')', ' ', ',']
 

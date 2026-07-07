@@ -19,7 +19,7 @@ from streaming.llm_api import StreamingLLM
 from streaming.tts_azure import StreamingTTS
 from pipelines.factory import init_pipelines, get_pipeline, list_pipelines
 
-app = FastAPI(title="船舶建造智能问答系统 — 流式管线版")
+app = FastAPI(title="健康与医疗智能问答系统 — 流式管线版")
 
 asr = StreamingASR(AZURE_SPEECH_KEY, AZURE_SPEECH_REGION)
 llm = StreamingLLM(DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL)

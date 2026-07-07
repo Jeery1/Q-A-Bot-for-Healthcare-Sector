@@ -14,7 +14,7 @@ env/
 # 数据文件
 data/*
 !data/
-!data/shipbuilding_dialogues.json
+!data/healthcare_dialogues.json
 
 # 模型权重
 model/

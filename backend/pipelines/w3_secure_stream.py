@@ -20,8 +20,8 @@ from sentence_splitter import SentenceSplitter
 logger = logging.getLogger(__name__)
 
 SAFETY_RESPONSES = {
-    "sensitive": "检测到不安全输入，已拒绝回答。请遵守船舶建造安全规范。",
-    "out_of_domain": "抱歉，我只能回答船舶建造相关的问题。请咨询焊接、涂装、船体、主机等技术话题。",
+    "sensitive": "检测到不安全输入，已拒绝回答。请咨询合规的健康医疗问题。",
+    "out_of_domain": "抱歉，我只能回答健康与医疗相关的问题。请咨询内科、外科、常见病、药物、预防保健、营养康复等健康话题。",
 }
 
 
