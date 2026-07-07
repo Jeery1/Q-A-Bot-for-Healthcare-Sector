@@ -18,11 +18,33 @@ from streaming.asr_azure import StreamingASR
 from streaming.llm_api import StreamingLLM
 from streaming.tts_azure import StreamingTTS
 from pipelines.factory import init_pipelines, get_pipeline, list_pipelines
+from rag.retriever import MedicalRAG
 
 app = FastAPI(title="健康与医疗智能问答系统 — 流式管线版")
 
 asr = StreamingASR(AZURE_SPEECH_KEY, AZURE_SPEECH_REGION)
-llm = StreamingLLM(DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL)
+
+retriever = None
+if RAG_ENABLED:
+    try:
+        model_name = RAG_EMBEDDING_MODEL
+        if not Path(model_name).is_absolute():
+            candidate = BASE_DIR / model_name
+            if candidate.exists():
+                model_name = str(candidate.resolve())
+        retriever = MedicalRAG(
+            persist_dir=RAG_PERSIST_DIR,
+            model_name=model_name,
+        )
+        if retriever.is_ready():
+            logging.info(f"RAG retriever ready: {retriever.get_count()} documents")
+        else:
+            logging.warning("RAG index is empty, run: python -m rag.prepare_data")
+    except Exception as e:
+        logging.warning(f"RAG init failed: {e}")
+
+llm = StreamingLLM(DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL,
+                   retriever=retriever, rag_top_k=RAG_TOP_K)
 tts = StreamingTTS(AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, TTS_VOICE)
 init_pipelines(asr, llm, tts)
 

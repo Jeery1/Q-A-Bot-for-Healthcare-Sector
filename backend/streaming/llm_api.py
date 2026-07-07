@@ -61,10 +61,13 @@ def _classify_safety_local(text: str) -> dict:
 class StreamingLLM:
     """DeepSeek / OpenAI-compatible LLM with stream=True support."""
 
-    def __init__(self, api_key: str, base_url: str = "https://api.deepseek.com", model: str = "deepseek-chat"):
+    def __init__(self, api_key: str, base_url: str = "https://api.deepseek.com",
+                 model: str = "deepseek-chat", retriever=None, rag_top_k: int = 3):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.retriever = retriever
+        self.rag_top_k = rag_top_k
         self.system_prompt = (
             "你是健康与医疗领域的智能助手，请用中文准确回答用户关于健康和医疗的问题。"
             "知识范围包括内科、外科、儿科、妇产科、骨科、皮肤科、神经科、心血管、消化、呼吸等常见科室，"
@@ -74,10 +77,37 @@ class StreamingLLM:
         )
 
     def _build_messages(self, prompt: str) -> list[dict]:
+        system_content = self.system_prompt
+        rag_context = self._build_rag_context(prompt)
+        if rag_context:
+            system_content += "\n\n以下为医疗知识库中检索到的相关参考信息，请参考这些信息回答问题：\n" + rag_context
         return [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": prompt},
         ]
+
+    def _build_rag_context(self, prompt: str) -> str:
+        if not self.retriever or not self.retriever.is_ready():
+            logger.debug(f"[RAG] retriever not ready, skipping")
+            return ""
+        try:
+            docs = self.retriever.retrieve(prompt, top_k=self.rag_top_k)
+            if not docs:
+                logger.info(f"[RAG] query={prompt!r} => 0 results")
+                return ""
+            logger.info(f"[RAG] query={prompt!r} => {len(docs)} results:")
+            blocks = []
+            for i, doc in enumerate(docs):
+                q_short = doc['question'][:60]
+                a_short = doc['answer'][:80]
+                logger.info(f"[RAG]   [{i + 1}] score={doc['score']:.4f} | Q: {q_short}... | A: {a_short}...")
+                blocks.append(
+                    f"[参考{i + 1}]\n问：{doc['question']}\n答：{doc['answer']}"
+                )
+            return "\n\n".join(blocks)
+        except Exception as e:
+            logger.warning(f"RAG retrieval failed: {e}")
+            return ""
 
     async def generate_stream(self, prompt: str):
         """

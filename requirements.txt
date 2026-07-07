@@ -3,3 +3,6 @@ uvicorn[standard]
 azure-cognitiveservices-speech
 httpx
 python-dotenv
+chromadb
+sentence-transformers
+datasets

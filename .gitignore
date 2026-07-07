@@ -17,7 +17,7 @@ data/*
 !data/healthcare_dialogues.json
 
 # 模型权重
-model/
+models/
 
 # VS Code
 .vscode/
