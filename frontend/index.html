@@ -86,12 +86,27 @@ body{
   border-bottom-left-radius:4px;border:1px solid #e2e8f0;
 }
 
+.msg.llm-token,.msg.bot{
+  position:relative;
+}
+.msg.has-play-btn{padding-bottom:22px}
 .msg.llm-token{
   align-self:flex-start;background:#f8fafc;color:#475569;
   border-bottom-left-radius:4px;border:1px solid #e2e8f0;
   transition:none;animation:none;
 }
 .msg.llm-token .bot-label{font-size:10px;color:#94a3b8;margin-bottom:2px;display:block}
+.msg-play-btn{
+  position:absolute;bottom:1px;right:4px;
+  width:22px;height:22px;border-radius:50%;
+  border:1.5px solid #99f6e4;background:#f0fdfa;color:#0d9488;
+  font-size:10px;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;
+  user-select:none;-webkit-user-select:none;
+  opacity:.7;transition:opacity .15s;z-index:1;
+}
+.msg-play-btn:hover{opacity:1}
+.msg-play-btn.paused{background:#fef3c7;border-color:#fcd34d;color:#b45309}
 
 .msg.asr-partial{
   align-self:flex-end;background:#f0f9ff;color:#94a3b8;
@@ -133,6 +148,8 @@ body{
   background:#f8fafc;border-color:#e2e8f0;
   color:#cbd5e1;cursor:not-allowed;
 }
+
+.audio-controls{display:flex;align-items:center;gap:12px}
 
 .status-line{display:flex;align-items:center;gap:7px;font-size:12px;color:#64748b}
 .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
@@ -188,7 +205,7 @@ body{
 <div id="vue-app">
   <div class="app-header">
     <h1><span class="icon">+</span>健康与医疗智能问答</h1>
-    <div class="subtitle">基于流式管线 · 语音交互</div>
+    <div class="subtitle">基于流式管线与RAG检索增强 · 语音交互</div>
   </div>
 
   <div class="mode-bar">
@@ -202,7 +219,7 @@ body{
   <div class="chat-container" ref="chatRef">
     <div class="msg-list">
       <div v-for="(msg,i) in messages" :key="i"
-           :class="['msg', msg.cls, {expanded: msg.expanded}]">
+           :class="['msg', msg.cls, {expanded: msg.expanded, 'has-play-btn': i===messages.length-1 && (msg.cls==='llm-token'||msg.cls==='bot') && (audioPlaying||audioPaused)}]">
         <template v-if="msg.cls==='rag'">
           <div class="rag-toggle-bar" @click="msg.expanded=!msg.expanded">
             <span class="rag-arrow">▶</span> 📋 参考来源
@@ -219,18 +236,25 @@ body{
         <template v-else>
           <template v-if="msg.label"><span class="asr-label">{{ msg.label }}</span></template>
           {{ msg.text }}
+          <div class="msg-play-btn" :class="{paused:audioPaused}"
+               v-if="i===messages.length-1 && (msg.cls==='llm-token'||msg.cls==='bot') && (audioPlaying||audioPaused)"
+               @click.stop="togglePause">
+            {{ audioPaused ? '▶' : '⏸' }}
+          </div>
         </template>
       </div>
     </div>
   </div>
 
   <div class="bottom-bar">
-    <div class="record-btn"
-         :class="{recording:isRecording, disabled:status==='processing'}"
-         @mousedown="startRec" @mouseup="stopRec"
-         @mouseleave="stopRecIfRecording"
-         @touchstart.prevent="startRec" @touchend.prevent="stopRec">
-      {{ isRecording ? '⏹' : '🎤' }}
+    <div class="audio-controls">
+      <div class="record-btn"
+           :class="{recording:isRecording, disabled:status==='processing'}"
+           @mousedown="startRec" @mouseup="stopRec"
+           @mouseleave="stopRecIfRecording"
+           @touchstart.prevent="startRec" @touchend.prevent="stopRec">
+        {{ isRecording ? '⏹' : '🎤' }}
+      </div>
     </div>
     <div class="status-line">
       <span class="status-dot" :class="statusClass"></span>
@@ -249,11 +273,12 @@ createApp({
     const chatRef = ref(null);
     const messages = reactive([]);
     const status = ref('idle');
-    const wsMode = ref('w1');
+    const wsMode = ref('w2');
     const isRecording = ref(false);
+    const audioPaused = ref(false);
+    const audioPlaying = ref(false);
 
     const modes = [
-      {key:'w1',label:'W1 基线'},
       {key:'w2',label:'W2 全流式'},
       {key:'w3',label:'W3 安全'},
     ];
@@ -262,7 +287,7 @@ createApp({
     const statusClass = ref('idle');
 
     let ws = null, audioCtx = null, source = null, processor = null, stream = null;
-    let audioQueue = [], audioPlaying = false;
+    let audioQueue = [], currentAudio = null;
     let tmpMsgIdx = -1;
 
     function setStatus(t,c){
@@ -328,6 +353,7 @@ createApp({
         setStatus('就绪','idle');
       }else if(d.type === 'done'){
         setStatus('就绪','idle');
+        audioPaused.value = false;
       }else if(d.type === 'rag_info'){
         messages.push({cls:'rag', docs: d.docs||[], expanded: false});
         scrollDown();
@@ -336,17 +362,30 @@ createApp({
 
     function playAudio(b64){
       audioQueue.push(b64);
-      if(!audioPlaying) _playNext();
+      if(!audioPlaying.value) _playNext();
     }
     function _playNext(){
-      if(!audioQueue.length){ audioPlaying=false; return; }
-      audioPlaying = true;
+      if(audioPaused.value) return;
+      if(!audioQueue.length){ audioPlaying.value=false; currentAudio=null; return; }
+      audioPlaying.value = true;
       const bin = Uint8Array.from(atob(audioQueue.shift()),c=>c.charCodeAt(0));
       const blob = new Blob([bin],{type:'audio/wav'});
       const url = URL.createObjectURL(blob);
       const a = new Audio(url);
+      currentAudio = a;
       a.onended = ()=>{ URL.revokeObjectURL(url); _playNext(); };
       a.play().catch(()=>_playNext());
+    }
+
+    function togglePause(){
+      if(!currentAudio) return;
+      if(audioPaused.value){
+        audioPaused.value = false;
+        currentAudio.play().catch(()=>{});
+      }else{
+        audioPaused.value = true;
+        currentAudio.pause();
+      }
     }
 
     async function startRec(){
@@ -384,7 +423,8 @@ createApp({
       if(source){ source.disconnect(); source=null; }
       if(audioCtx){ audioCtx.close(); audioCtx=null; }
       if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-      audioQueue = []; audioPlaying = false;
+      audioQueue = []; audioPlaying.value = false; audioPaused.value = false;
+      if(currentAudio){ try{currentAudio.pause()}catch(e){}; currentAudio=null; }
       if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'audio_end'}));
       setStatus('处理中…','processing');
     }
@@ -406,11 +446,12 @@ createApp({
     }
 
     onMounted(()=>{
-      connect('w1');
+      connect('w2');
     });
 
     return {
       chatRef, messages, status, wsMode, isRecording,
+      audioPaused, audioPlaying, togglePause,
       modes, statusText, statusClass,
       startRec, stopRec, stopRecIfRecording, switchMode,
     };
