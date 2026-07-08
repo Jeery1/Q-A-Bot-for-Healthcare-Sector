@@ -139,6 +139,8 @@ class W2FullStreaming(BasePipeline):
 
         await sentence_queue.put("好的，正在为您查询。")
 
+        rag_sent = False
+
         # 流式 LLM → 句级切分 → 流式 TTS ─────────────────
         splitter = SentenceSplitter()
         full_answer = ""
@@ -154,6 +156,10 @@ class W2FullStreaming(BasePipeline):
                 if first_token:
                     t.llm_ttfb = time.perf_counter() - t_llm_start
                     first_token = False
+                if not rag_sent:
+                    rag_sent = True
+                    if self.llm._last_rag_docs:
+                        await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
                 full_answer += text
                 token_count += 1
                 logger.debug(f"[W2] token#{token_count}: {text!r}")

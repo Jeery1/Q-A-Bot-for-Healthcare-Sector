@@ -60,6 +60,8 @@ class W1Baseline(BasePipeline):
         t0 = time.perf_counter()
         answer_text = await self.llm.generate_once(asr_text)
         t.llm = time.perf_counter() - t0
+        if self.llm._last_rag_docs:
+            await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
         await ws.send_json({"type": "answer", "text": answer_text})
 
         t0 = time.perf_counter()

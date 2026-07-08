@@ -68,6 +68,7 @@ class StreamingLLM:
         self.model = model
         self.retriever = retriever
         self.rag_top_k = rag_top_k
+        self._last_rag_docs = []
         self.system_prompt = (
             "你是健康与医疗领域的智能助手，请用中文准确回答用户关于健康和医疗的问题。"
             "知识范围包括内科、外科、儿科、妇产科、骨科、皮肤科、神经科、心血管、消化、呼吸等常见科室，"
@@ -87,11 +88,13 @@ class StreamingLLM:
         ]
 
     def _build_rag_context(self, prompt: str) -> str:
+        self._last_rag_docs = []
         if not self.retriever or not self.retriever.is_ready():
             logger.debug(f"[RAG] retriever not ready, skipping")
             return ""
         try:
             docs = self.retriever.retrieve(prompt, top_k=self.rag_top_k)
+            self._last_rag_docs = docs
             if not docs:
                 logger.info(f"[RAG] query={prompt!r} => 0 results")
                 return ""

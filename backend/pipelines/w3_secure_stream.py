@@ -171,6 +171,7 @@ class W3SecureStreaming(BasePipeline):
         full_answer = ""
         t_llm_start = time.perf_counter()
         first_token = True
+        rag_sent = False
 
         logger.info(f"[W3] LLM start, prompt={asr_text!r}")
         token_count = 0
@@ -181,6 +182,10 @@ class W3SecureStreaming(BasePipeline):
                 if first_token:
                     t.llm_ttfb = time.perf_counter() - t_llm_start
                     first_token = False
+                if not rag_sent:
+                    rag_sent = True
+                    if self.llm._last_rag_docs:
+                        await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
                 full_answer += text
                 token_count += 1
                 logger.debug(f"[W3] token#{token_count}: {text!r}")
