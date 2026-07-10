@@ -81,7 +81,11 @@ class StreamingLLM:
         system_content = self.system_prompt
         rag_context = await self._build_rag_context(prompt)
         if rag_context:
-            system_content += "\n\n以下为医疗知识库中检索到的相关参考信息，请参考这些信息回答问题：\n" + rag_context
+            system_content += (
+                "\n\n【医疗知识库参考资料】（以下为检索到的历史问答对，"
+                "仅作知识参考，并非当前用户提问。用户的实际问题在下方单独给出，请以此为准作答）：\n"
+                + rag_context
+            )
         return [
             {"role": "system", "content": system_content},
             {"role": "user", "content": prompt},
@@ -107,7 +111,9 @@ class StreamingLLM:
                 a_short = doc['answer'][:80]
                 logger.info(f"[RAG]   [{i + 1}] score={doc['score']:.4f} | Q: {q_short}... | A: {a_short}...")
                 blocks.append(
-                    f"[参考{i + 1}]\n问：{doc['question']}\n答：{doc['answer']}"
+                    f"[参考资料{i + 1}]\n"
+                    f"历史提问：{doc['question']}\n"
+                    f"历史回答：{doc['answer']}"
                 )
             return "\n\n".join(blocks)
         except Exception as e:

@@ -1,0 +1,29 @@
+services:
+  app:
+    image: healthcare-bot:latest
+    build: .
+    network_mode: host
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-eastasia}
+      - TTS_VOICE=${TTS_VOICE:-zh-CN-XiaoxiaoNeural}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - RAG_PERSIST_DIR=${RAG_PERSIST_DIR:-/app/data/healthcare_rag}
+      - RAG_EMBEDDING_MODEL=${RAG_EMBEDDING_MODEL:-/app/models/text2vec-base-chinese}
+      - RAG_TOP_K=${RAG_TOP_K:-3}
+      - MYSQL_HOST=${MYSQL_HOST:-localhost}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_USER=${MYSQL_USER:-healthcare_bot}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-healthcare_bot}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    restart: unless-stopped

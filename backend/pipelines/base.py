@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, AsyncIterator
+from typing import Optional, Callable, Awaitable
 
 
 @dataclass
@@ -27,6 +27,7 @@ class PipelineResult:
     timings: TimingMetrics = field(default_factory=TimingMetrics)
     metrics: dict = field(default_factory=dict)
     error: Optional[str] = None
+    rag_docs: Optional[list] = None
 
 
 class BasePipeline:
@@ -37,16 +38,18 @@ class BasePipeline:
         """Non-streaming: full audio in, result out."""
         raise NotImplementedError
 
-    async def run_stream(self, audio_chunk_iter, ws):
+    async def run_stream(self, audio_chunk_iter, ws, on_answer: Callable[[str, str, list | None], Awaitable[None]] | None = None):
         """
         Streaming: feed audio chunks iteratively, send intermediate results via ws.
+        on_answer(asr_text, answer_text, rag_docs) is called after LLM completes (before TTS).
         Returns the final PipelineResult.
         """
         raise NotImplementedError
 
-    async def run_text(self, text: str, ws):
+    async def run_text(self, text: str, ws, on_answer: Callable[[str, str, list | None], Awaitable[None]] | None = None):
         """
         Text input: skip ASR, send text directly to LLM + TTS pipeline.
+        on_answer(asr_text, answer_text, rag_docs) is called after LLM completes (before TTS).
         Returns the final PipelineResult.
         """
         raise NotImplementedError

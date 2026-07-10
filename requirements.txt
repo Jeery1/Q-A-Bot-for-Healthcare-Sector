@@ -5,3 +5,10 @@ httpx
 python-dotenv
 chromadb
 sentence-transformers
+slowapi
+sqlalchemy[asyncio]
+aiomysql
+python-jose[cryptography]
+bcrypt
+python-multipart
+alembic

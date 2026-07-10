@@ -9,7 +9,7 @@ env/
 .gitattributes
 .gitignore
 
-# Env files (keep out of image — passed at runtime)
+# Env files
 .env
 *.env
 
@@ -19,9 +19,22 @@ env/
 .DS_Store
 Thumbs.db
 
+# Dev docs
+APIS.md
+database-design.md
+LICENSE
+
+# Archives
+*.tar.gz
+*.tar
+
+# Models (mounted as volume at runtime)
+models/
+
 # Data (mount as volume)
 data/
 
 # Docker
 Dockerfile
 .dockerignore
+docker-compose.yml

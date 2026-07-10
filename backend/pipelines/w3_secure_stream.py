@@ -45,7 +45,7 @@ class W3SecureStreaming(BasePipeline):
 
         return await self.run_stream(_chunks(), _Null())
 
-    async def run_stream(self, audio_chunk_iter, ws):
+    async def run_stream(self, audio_chunk_iter, ws, on_answer=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
         asr_text = ""
@@ -70,9 +70,9 @@ class W3SecureStreaming(BasePipeline):
             return PipelineResult(error="未识别到语音", timings=t)
 
         await warmup_task
-        return await self._safety_check_llm_tts(asr_text, ws, t, t_start)
+        return await self._safety_check_llm_tts(asr_text, ws, t, t_start, on_answer)
 
-    async def run_text(self, text: str, ws):
+    async def run_text(self, text: str, ws, on_answer=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
 
@@ -83,11 +83,11 @@ class W3SecureStreaming(BasePipeline):
         logger.info(f"[W3-text] input={text!r}")
         await ws.send_json({"type": "asr_final", "text": text})
         await self._warmup_llm()
-        return await self._safety_check_llm_tts(text, ws, t, t_start)
+        return await self._safety_check_llm_tts(text, ws, t, t_start, on_answer)
 
     # ── 安全门控 + LLM + TTS ────────────────────────────
 
-    async def _safety_check_llm_tts(self, asr_text: str, ws, t: TimingMetrics, t_start: float):
+    async def _safety_check_llm_tts(self, asr_text: str, ws, t: TimingMetrics, t_start: float, on_answer=None):
         safety = await self.llm.classify_safety(asr_text)
         is_safe = safety.get("safe", True)
         logger.info(f"[W3] safety check: safe={is_safe} reason={safety.get('reason')} "
@@ -217,6 +217,10 @@ class W3SecureStreaming(BasePipeline):
 
         logger.info(f"[W3] LLM done: {token_count} tokens, {sentence_count} sentences, full={full_answer!r}")
 
+        if on_answer:
+            rag_docs = self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None
+            await on_answer(asr_text, full_answer, rag_docs)
+
         for sent in splitter.flush():
             sentence_count += 1
             await sentence_queue.put(sent)
@@ -244,6 +248,7 @@ class W3SecureStreaming(BasePipeline):
             answer_text=full_answer,
             timings=t,
             metrics={"safe": True, "intercept_reason": "ok", "safety_source": safety.get("source")},
+            rag_docs=self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None,
         )
 
     async def _warmup_llm(self):

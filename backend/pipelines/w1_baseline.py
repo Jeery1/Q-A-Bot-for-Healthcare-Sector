@@ -38,7 +38,7 @@ class W1Baseline(BasePipeline):
 
         return await self.run_stream(_chunks(), _Null())
 
-    async def run_stream(self, audio_chunk_iter, ws):
+    async def run_stream(self, audio_chunk_iter, ws, on_answer=None):
         """Accumulate audio, one-shot ASR, LLM, send text, then TTS."""
         t = TimingMetrics()
         t_start = time.perf_counter()
@@ -60,6 +60,9 @@ class W1Baseline(BasePipeline):
         t0 = time.perf_counter()
         answer_text = await self.llm.generate_once(asr_text)
         t.llm = time.perf_counter() - t0
+        if on_answer:
+            rag_docs = self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None
+            await on_answer(asr_text, answer_text, rag_docs)
         if self.llm._last_rag_docs:
             await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
         await ws.send_json({"type": "answer", "text": answer_text})
@@ -80,9 +83,10 @@ class W1Baseline(BasePipeline):
                     f"total={t.total:.2f}s  first_audio={t.first_audio:.2f}s")
 
         return PipelineResult(asr_text=asr_text, answer_text=answer_text,
-                              tts_audio=tts_audio, timings=t)
+                              tts_audio=tts_audio, timings=t,
+                              rag_docs=self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None)
 
-    async def run_text(self, text: str, ws):
+    async def run_text(self, text: str, ws, on_answer=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
 
@@ -95,6 +99,9 @@ class W1Baseline(BasePipeline):
 
         answer_text = await self.llm.generate_once(text)
         t.llm = time.perf_counter() - t_start
+        if on_answer:
+            rag_docs = self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None
+            await on_answer(text, answer_text, rag_docs)
         if self.llm._last_rag_docs:
             await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
         await ws.send_json({"type": "answer", "text": answer_text})
@@ -114,4 +121,5 @@ class W1Baseline(BasePipeline):
         logger.info(f"[W1-text] llm={t.llm:.2f}s  tts={t.tts:.2f}s  total={t.total:.2f}s")
 
         return PipelineResult(asr_text=text, answer_text=answer_text,
-                              tts_audio=tts_audio, timings=t)
+                              tts_audio=tts_audio, timings=t,
+                              rag_docs=self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None)

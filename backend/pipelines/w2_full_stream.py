@@ -45,7 +45,7 @@ class W2FullStreaming(BasePipeline):
 
     # ── WebSocket 实时流式 ──────────────────────────────────
 
-    async def run_stream(self, audio_chunk_iter, ws):
+    async def run_stream(self, audio_chunk_iter, ws, on_answer=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
         asr_text = ""
@@ -70,9 +70,9 @@ class W2FullStreaming(BasePipeline):
             return PipelineResult(error="未识别到语音", timings=t)
 
         await warmup_task
-        return await self._stream_llm_tts(asr_text, ws, t, t_start)
+        return await self._stream_llm_tts(asr_text, ws, t, t_start, on_answer)
 
-    async def run_text(self, text: str, ws):
+    async def run_text(self, text: str, ws, on_answer=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
 
@@ -83,11 +83,11 @@ class W2FullStreaming(BasePipeline):
         logger.info(f"[W2-text] input={text!r}")
         await ws.send_json({"type": "asr_final", "text": text})
         await self._warmup_llm()
-        return await self._stream_llm_tts(text, ws, t, t_start)
+        return await self._stream_llm_tts(text, ws, t, t_start, on_answer)
 
     # ── LLM + TTS 公共逻辑 ──────────────────────────────
 
-    async def _stream_llm_tts(self, asr_text: str, ws, t: TimingMetrics, t_start: float):
+    async def _stream_llm_tts(self, asr_text: str, ws, t: TimingMetrics, t_start: float, on_answer=None):
         sentence_queue = asyncio.Queue()
         output_queue = asyncio.Queue()
         seq_counter = 0
@@ -191,6 +191,10 @@ class W2FullStreaming(BasePipeline):
 
         logger.info(f"[W2] LLM done: {token_count} tokens, {sentence_count} sentences, full={full_answer!r}")
 
+        if on_answer:
+            rag_docs = self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None
+            await on_answer(asr_text, full_answer, rag_docs)
+
         for sent in splitter.flush():
             sentence_count += 1
             await sentence_queue.put(sent)
@@ -213,7 +217,8 @@ class W2FullStreaming(BasePipeline):
                         "total": round(t.total, 2)}
         })
 
-        return PipelineResult(asr_text=asr_text, answer_text=full_answer, timings=t)
+        return PipelineResult(asr_text=asr_text, answer_text=full_answer, timings=t,
+                              rag_docs=self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None)
 
     # ── 并行预热 ──────────────────────────────────────────
 

@@ -4,512 +4,105 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>健康与医疗智能问答系统</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-
-body{
-  font-family:-apple-system,"Microsoft YaHei","PingFang SC",sans-serif;
-  background:linear-gradient(160deg,#f0f9ff 0%,#ecfeff 40%,#f0fdf4 100%);
-  min-height:100vh;display:flex;justify-content:center;align-items:center;
-  padding:12px;
-}
-
-#vue-app{
-  width:100%;max-width:480px;height:92vh;max-height:900px;
-  background:#fff;
-  border-radius:24px;display:flex;flex-direction:column;overflow:hidden;
-  box-shadow:0 4px 24px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04);
-}
-
-.app-header{
-  padding:22px 20px 14px;text-align:center;
-  background:linear-gradient(180deg,#f8fdfe 0%,#fff 100%);
-  border-bottom:1px solid #e8f4f8;
-}
-.app-header h1{
-  font-size:17px;font-weight:700;color:#0f766e;
-  letter-spacing:0.5px;display:flex;align-items:center;
-  justify-content:center;gap:8px;
-}
-.app-header h1 .icon{
-  display:inline-flex;width:32px;height:32px;border-radius:10px;
-  background:linear-gradient(135deg,#14b8a6,#0d9488);
-  align-items:center;justify-content:center;font-size:17px;color:#fff;
-}
-.app-header .subtitle{
-  font-size:11px;color:#94a3b8;margin-top:4px;
-}
-
-.mode-bar{
-  display:flex;gap:6px;padding:6px 16px 14px;justify-content:center;
-}
-.mode-btn{
-  flex:1;max-width:120px;padding:7px 0;border-radius:10px;
-  border:1px solid #d1e7e0;background:#f8fdfe;
-  color:#64748b;font-size:11px;cursor:pointer;transition:all .2s;
-  text-align:center;user-select:none;-webkit-user-select:none;
-}
-.mode-btn:hover{background:#f0f9f6;color:#33404d}
-.mode-btn.active{
-  background:linear-gradient(135deg,#e6f7f5,#ccfbf1);border-color:#5eead4;
-  color:#0f766e;font-weight:600;
-}
-
-.chat-container{flex:1;overflow-y:auto;padding:10px 14px 16px;}
-.chat-container::-webkit-scrollbar{width:4px}
-.chat-container::-webkit-scrollbar-track{background:transparent}
-.chat-container::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
-
-.msg-list{display:flex;flex-direction:column;gap:8px;}
-
-.msg{
-  max-width:85%;padding:10px 14px;border-radius:14px;font-size:13.5px;
-  line-height:1.7;word-break:break-word;
-  animation:msgIn .25s ease;
-}
-@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-.msg.system{
-  align-self:center;background:#f1f5f9;color:#94a3b8;
-  font-size:11px;max-width:90%;border-radius:8px;text-align:center;
-  padding:6px 16px;
-}
-
-.msg.asr-final{
-  align-self:flex-end;background:#e6f7f5;color:#0c4a6e;
-  border-bottom-right-radius:4px;
-}
-.msg.asr-final .asr-label{font-size:10px;color:#94a3b8;margin-bottom:2px;display:block}
-
-.msg.bot{
-  align-self:flex-start;background:#f8fafc;color:#334155;
-  border-bottom-left-radius:4px;border:1px solid #e2e8f0;
-}
-
-.msg.llm-token,.msg.bot{
-  position:relative;
-}
-.msg.has-play-btn{padding-bottom:22px}
-.msg.llm-token{
-  align-self:flex-start;background:#f8fafc;color:#475569;
-  border-bottom-left-radius:4px;border:1px solid #e2e8f0;
-  transition:none;animation:none;
-}
-.msg.llm-token .bot-label{font-size:10px;color:#94a3b8;margin-bottom:2px;display:block}
-.msg-play-btn{
-  position:absolute;bottom:1px;right:4px;
-  width:32px;height:32px;border-radius:50%;
-  border:1.5px solid #99f6e4;background:#f0fdfa;color:#0d9488;
-  font-size:16px;cursor:pointer;display:flex;
-  align-items:center;justify-content:center;
-  user-select:none;-webkit-user-select:none;
-  opacity:.7;transition:opacity .15s;z-index:1;
-}
-.msg-play-btn:hover{opacity:1}
-.msg-play-btn.paused{background:#fef3c7;border-color:#fcd34d;color:#b45309}
-
-.msg.asr-partial{
-  align-self:flex-end;background:#f0f9ff;color:#94a3b8;
-  font-style:italic;font-size:12px;border-bottom-right-radius:4px;
-}
-
-.msg.security{
-  align-self:flex-start;background:#fff7ed;color:#c2410c;
-  border:1px solid #fed7aa;border-bottom-left-radius:4px;
-}
-
-.bottom-bar{
-  padding:12px 20px 20px;display:flex;flex-direction:column;
-  align-items:center;gap:8px;
-  border-top:1px solid #e8f4f8;
-  background:linear-gradient(0deg,#f8fdfe,transparent);
-}
-
-.text-input-bar{
-  display:flex;gap:8px;padding:8px 16px 0;
-}
-.text-input-bar input{
-  flex:1;padding:10px 14px;border-radius:12px;
-  border:1px solid #d1e7e0;background:#f8fdfe;
-  color:#334155;font-size:13px;outline:none;
-  font-family:inherit;transition:border-color .2s;
-}
-.text-input-bar input:focus{border-color:#5eead4}
-.text-input-bar input::placeholder{color:#cbd5e1}
-.text-input-bar button{
-  padding:10px 16px;border-radius:12px;border:none;
-  background:linear-gradient(135deg,#14b8a6,#0d9488);
-  color:#fff;font-size:13px;cursor:pointer;
-  white-space:nowrap;transition:opacity .2s;
-  font-family:inherit;
-}
-.text-input-bar button:hover{opacity:.85}
-.text-input-bar button:disabled{opacity:.4;cursor:not-allowed}
-
-.record-btn{
-  width:64px;height:64px;border-radius:50%;
-  border:2px solid #99f6e4;background:#f0fdfa;color:#0d9488;
-  font-size:22px;cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;justify-content:center;
-  user-select:none;-webkit-user-select:none;position:relative;
-}
-.record-btn:hover{background:#ccfbf1;transform:scale(1.04)}
-.record-btn:active{transform:scale(.94)}
-
-.record-btn.recording{
-  background:#fef2f2;border-color:#fca5a5;color:#dc2626;
-  animation:pulse 1.5s infinite;
-}
-@keyframes pulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3)}
-  50%{box-shadow:0 0 0 14px rgba(239,68,68,0)}
-}
-
-.record-btn.disabled{
-  background:#f8fafc;border-color:#e2e8f0;
-  color:#cbd5e1;cursor:not-allowed;
-}
-
-.audio-controls{display:flex;align-items:center;gap:12px}
-
-.status-line{display:flex;align-items:center;gap:7px;font-size:12px;color:#64748b}
-.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
-.status-dot.idle{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,0.3)}
-.status-dot.recording{background:#ef4444;animation:dotBlink .6s infinite}
-.status-dot.processing{background:#f59e0b;animation:dotBlink .8s infinite}
-.status-dot.disconnected{background:#94a3b8}
-@keyframes dotBlink{50%{opacity:.25}}
-
-.hint-text{font-size:11px;color:#94a3b8;text-align:center}
-
-/* ── RAG inline message ── */
-.msg.rag{
-  max-width:95%;padding:0;border-radius:10px;overflow:hidden;
-  background:#f8fdfe;border:1px solid #d1e7e0;align-self:flex-start;
-  font-size:12px;line-height:1.5;
-}
-.msg.rag .rag-toggle-bar{
-  display:flex;align-items:center;gap:6px;padding:8px 12px;
-  cursor:pointer;user-select:none;color:#64748b;
-  font-size:11px;transition:background .15s;
-}
-.msg.rag .rag-toggle-bar:hover{background:#e6f7f5}
-.msg.rag .rag-toggle-bar .rag-arrow{
-  transition:transform .2s;font-size:10px;
-}
-.msg.rag .rag-toggle-bar .rag-badge{
-  font-size:10px;background:#0d9488;color:#fff;
-  border-radius:8px;padding:1px 6px;margin-left:auto;
-}
-.msg.rag .rag-body{
-  max-height:0;overflow:hidden;transition:max-height .3s ease;
-}
-.msg.rag.expanded .rag-body{max-height:350px;overflow-y:auto}
-.msg.rag.expanded .rag-toggle-bar .rag-arrow{transform:rotate(90deg)}
-.msg.rag .rag-body::-webkit-scrollbar{width:3px}
-.msg.rag .rag-body::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
-.msg.rag .rag-item{
-  padding:7px 12px;border-top:1px solid #e8f4f8;
-}
-.msg.rag .rag-item .rag-score{
-  display:inline-block;font-size:10px;background:#e6f7f5;color:#0d9488;
-  padding:1px 6px;border-radius:6px;margin-bottom:3px;
-}
-.msg.rag .rag-item .rag-q{color:#475569}
-.msg.rag .rag-item .rag-q::before{content:'Q: ';color:#94a3b8;font-weight:600}
-.msg.rag .rag-item .rag-a{color:#64748b;font-size:11px;line-height:1.5}
-.msg.rag .rag-item .rag-a::before{content:'A: ';color:#94a3b8;font-weight:600}
-</style>
+<link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 
 <div id="vue-app">
-  <div class="app-header">
-    <h1><span class="icon">+</span>健康与医疗智能问答</h1>
-    <div class="subtitle">基于流式管线与RAG检索增强 · 语音交互</div>
-  </div>
-
-  <div class="mode-bar">
-    <div v-for="m in modes" :key="m.key"
-         class="mode-btn" :class="{active:wsMode===m.key}"
-         @click="switchMode(m.key)">
-      {{ m.label }}
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span>对话历史</span>
+    </div>
+    <button class="sidebar-new-btn" @click="newConversation">+ 新建对话</button>
+    <div class="sidebar-list">
+      <div class="empty-conv" v-if="conversations.length===0">暂无对话记录</div>
+      <div v-for="c in conversations" :key="c.id"
+           class="sidebar-item" :class="{active:convId===c.id}"
+           @click="switchConv(c.id)">
+        <div class="conv-info">
+          <div class="conv-title">{{ c.title }}</div>
+          <div class="conv-time">{{ fmtTime(c.updated_at) }}</div>
+        </div>
+        <span class="conv-del" @click.stop="deleteConv(c.id)">&#x2715;</span>
+      </div>
     </div>
   </div>
 
-  <div class="chat-container" ref="chatRef">
-    <div class="msg-list">
-      <div v-for="(msg,i) in messages" :key="i"
-           :class="['msg', msg.cls, {expanded: msg.expanded, 'has-play-btn': i===messages.length-1 && (msg.cls==='llm-token'||msg.cls==='bot') && (audioPlaying||audioPaused)}]">
-        <template v-if="msg.cls==='rag'">
-          <div class="rag-toggle-bar" @click="msg.expanded=!msg.expanded">
-            <span class="rag-arrow">▶</span> 📋 参考来源
-            <span class="rag-badge">{{ msg.docs.length }} 条</span>
-          </div>
-          <div class="rag-body">
-            <div class="rag-item" v-for="(doc,j) in msg.docs" :key="j">
-              <div class="rag-score">匹配度 {{ (doc.score*100).toFixed(1) }}%</div>
-              <div class="rag-q">{{ doc.question }}</div>
-              <div class="rag-a">{{ doc.answer }}</div>
+  <div class="main-area">
+    <div class="app-header">
+      <div class="user-bar">
+        <span class="user-name" v-if="user">{{ user.username }}</span>
+        <button class="logout-btn" @click="doLogout">退出登录</button>
+      </div>
+      <h1><span class="icon">+</span>健康与医疗智能问答</h1>
+      <div class="subtitle">基于流式管线与RAG检索增强 · 语音交互</div>
+    </div>
+
+    <div class="mode-bar">
+      <div v-for="m in modes" :key="m.key"
+           class="mode-btn" :class="{active:wsMode===m.key}"
+           @click="switchMode(m.key)">
+        {{ m.label }}
+      </div>
+    </div>
+
+    <div class="chat-container" ref="chatRef">
+      <div class="msg-list">
+        <div v-for="(msg,i) in messages" :key="i"
+             :class="['msg', msg.cls, {expanded: msg.expanded, 'has-play-btn': i===messages.length-1 && (msg.cls==='llm-token'||msg.cls==='bot') && (audioPlaying||audioPaused)}]">
+          <template v-if="msg.cls==='rag'">
+            <div class="rag-toggle-bar" @click="msg.expanded=!msg.expanded">
+              <span class="rag-arrow">&#x25B6;</span> 参考来源
+              <span class="rag-badge">{{ msg.docs.length }} 条</span>
             </div>
-          </div>
-        </template>
-        <template v-else>
-          <template v-if="msg.label"><span class="asr-label">{{ msg.label }}</span></template>
-          {{ msg.text }}
-          <div class="msg-play-btn" :class="{paused:audioPaused}"
-               v-if="i===messages.length-1 && (msg.cls==='llm-token'||msg.cls==='bot') && (audioPlaying||audioPaused)"
-               @click.stop="togglePause">
-            {{ audioPaused ? '▶' : '⏸' }}
-          </div>
-        </template>
+            <div class="rag-body">
+              <div class="rag-item" v-for="(doc,j) in msg.docs" :key="j">
+                <div class="rag-score">匹配度 {{ (doc.score*100).toFixed(1) }}%</div>
+                <div class="rag-q">{{ doc.question }}</div>
+                <div class="rag-a">{{ doc.answer }}</div>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <template v-if="msg.label"><span class="asr-label">{{ msg.label }}</span></template>
+            {{ msg.text }}
+            <div class="msg-play-btn" :class="{paused:audioPaused}"
+                 v-if="i===messages.length-1 && (msg.cls==='llm-token'||msg.cls==='bot') && (audioPlaying||audioPaused)"
+                 @click.stop="togglePause">
+              {{ audioPaused ? '&#x25B6;' : '&#x23F8;' }}
+            </div>
+          </template>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="text-input-bar">
-    <input type="text" v-model="inputText" placeholder="输入健康问题或使用语音输入…"
-           @keyup.enter="sendText" :disabled="status==='processing'" />
-    <button @click="sendText" :disabled="status==='processing' || !inputText.trim()">发送</button>
-  </div>
+    <div class="text-input-bar">
+      <input type="text" v-model="inputText" placeholder="输入健康问题或使用语音输入…"
+             @keyup.enter="sendText" :disabled="status==='processing'" />
+      <button @click="sendText" :disabled="status==='processing' || !inputText.trim()">发送</button>
+    </div>
 
-  <div class="bottom-bar">
-    <div class="audio-controls">
-      <div class="record-btn"
-           :class="{recording:isRecording, disabled:status==='processing'}"
-           @mousedown="startRec" @mouseup="stopRec"
-           @mouseleave="stopRecIfRecording"
-           @touchstart.prevent="startRec" @touchend.prevent="stopRec">
-        {{ isRecording ? '⏹' : '🎤' }}
+    <div class="bottom-bar">
+      <div class="audio-controls">
+        <div class="record-btn"
+             :class="{recording:isRecording, disabled:status==='processing'}"
+             @mousedown="startRec" @mouseup="stopRec"
+             @mouseleave="stopRecIfRecording"
+             @touchstart.prevent="startRec" @touchend.prevent="stopRec">
+          {{ isRecording ? '&#x23F9;' : '&#x1F3A4;' }}
+        </div>
       </div>
+      <div class="status-line">
+        <span class="status-dot" :class="statusClass"></span>
+        {{ statusText }}
+      </div>
+      <div class="hint-text">按住说话 · 松手发送</div>
     </div>
-    <div class="status-line">
-      <span class="status-dot" :class="statusClass"></span>
-      {{ statusText }}
-    </div>
-    <div class="hint-text">按住说话 · 松手发送</div>
+    <div class="toast" v-if="toast.show" :class="toast.type">{{ toast.text }}</div>
   </div>
 </div>
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-<script>
-const { createApp, ref, reactive, nextTick, watch, onMounted } = Vue;
-
-createApp({
-  setup(){
-    const chatRef = ref(null);
-    const messages = reactive([]);
-    const status = ref('idle');
-    const wsMode = ref('w2');
-    const isRecording = ref(false);
-    const audioPaused = ref(false);
-    const audioPlaying = ref(false);
-    const inputText = ref('');
-
-    const modes = [
-      {key:'w2',label:'W2 全流式'},
-      {key:'w3',label:'W3 安全'},
-    ];
-
-    const statusText = ref('就绪');
-    const statusClass = ref('idle');
-
-    let ws = null, audioCtx = null, source = null, processor = null, stream = null;
-    let audioQueue = [], currentAudio = null;
-    let tmpMsgIdx = -1;
-    let reconnectTimer = null, reconnectCount = 0;
-
-    function clearReconnect(){
-      if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
-    }
-
-    function scheduleReconnect(){
-      clearReconnect();
-      reconnectCount++;
-      const base = Math.min(1000 * Math.pow(2, reconnectCount-1), 16000);
-      const delay = Math.floor(base * (0.5 + Math.random() * 0.5));
-      setStatus(`重连中(${reconnectCount})…`,'disconnected');
-      reconnectTimer = setTimeout(() => connect(wsMode.value), delay);
-    }
-
-    function setStatus(t,c){
-      status.value = c;
-      statusText.value = t;
-      statusClass.value = c;
-    }
-
-    function addMsg(text,cls,label){
-      messages.push({text,cls,label:label||''});
-      scrollDown();
-    }
-
-    function scrollDown(){
-      nextTick(()=>{
-        if(chatRef.value) chatRef.value.scrollTop = chatRef.value.scrollHeight;
-      });
-    }
-
-    function connect(m){
-      clearReconnect();
-      if(ws){ try{ws.close()}catch(e){}; ws = null; }
-      wsMode.value = m;
-      const socket = ws = new WebSocket(`ws://${location.host}/ws?mode=${m}`);
-      socket.onopen = () => { reconnectCount = 0; setStatus('就绪','idle'); };
-      socket.onclose = () => { if(ws !== socket) return; scheduleReconnect(); };
-      socket.onmessage = onMsg;
-      socket.onerror = () => {};
-    }
-
-    function onMsg(e){
-      const d = JSON.parse(e.data);
-      if(d.error){
-        addMsg('错误: '+d.error,'bot','');
-        setStatus('就绪','idle');
-        return;
-      }
-      if(d.type === 'asr_partial'){
-        if(tmpMsgIdx < 0){
-          messages.push({text:d.text,cls:'asr-partial',label:'正在聆听'});
-          tmpMsgIdx = messages.length-1;
-        }else{
-          messages[tmpMsgIdx].text = d.text;
-        }
-        scrollDown();
-      }else if(d.type === 'asr_final'){
-        if(tmpMsgIdx >= 0){ messages.splice(tmpMsgIdx,1); tmpMsgIdx=-1; }
-        addMsg(d.text,'asr-final','您说:');
-      }else if(d.type === 'llm_token'){
-        const last = messages.length>0 ? messages[messages.length-1] : null;
-        if(!last || last.cls !== 'llm-token'){
-          messages.push({text:'',cls:'llm-token',label:'AI'});
-        }
-        const cur = messages[messages.length-1];
-        cur.text += d.text;
-        scrollDown();
-      }else if(d.type === 'answer'){
-        if(tmpMsgIdx >= 0){ messages.splice(tmpMsgIdx,1); tmpMsgIdx=-1; }
-        const cls = d.safe===false ? 'security' : 'bot';
-        addMsg(d.text,cls,d.safe===false ? '安全提醒:' : 'AI:');
-      }else if(d.type === 'tts_chunk'){
-        playAudio(d.data);
-      }else if(d.type === 'audio'){
-        playAudio(d.data);
-        setStatus('就绪','idle');
-      }else if(d.type === 'done'){
-        setStatus('就绪','idle');
-        audioPaused.value = false;
-      }else if(d.type === 'rag_info'){
-        messages.push({cls:'rag', docs: d.docs||[], expanded: false});
-        scrollDown();
-      }
-    }
-
-    function playAudio(b64){
-      audioQueue.push(b64);
-      if(!audioPlaying.value) _playNext();
-    }
-    function _playNext(){
-      if(audioPaused.value) return;
-      if(!audioQueue.length){ audioPlaying.value=false; currentAudio=null; return; }
-      audioPlaying.value = true;
-      const bin = Uint8Array.from(atob(audioQueue.shift()),c=>c.charCodeAt(0));
-      const blob = new Blob([bin],{type:'audio/wav'});
-      const url = URL.createObjectURL(blob);
-      const a = new Audio(url);
-      currentAudio = a;
-      a.onended = ()=>{ URL.revokeObjectURL(url); _playNext(); };
-      a.play().catch(()=>_playNext());
-    }
-
-    function togglePause(){
-      if(!currentAudio) return;
-      if(audioPaused.value){
-        audioPaused.value = false;
-        currentAudio.play().catch(()=>{});
-      }else{
-        audioPaused.value = true;
-        currentAudio.pause();
-      }
-    }
-
-    function sendText(){
-      const t = inputText.value.trim();
-      if(!t || !ws || ws.readyState !== WebSocket.OPEN) return;
-      ws.send(JSON.stringify({type:'text_query',text:t}));
-      inputText.value = '';
-      setStatus('处理中…','processing');
-    }
-
-    async function startRec(){
-      if(!ws || ws.readyState !== WebSocket.OPEN) return;
-      try{
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio:{sampleRate:16000,channelCount:1}
-        });
-        audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-        source = audioCtx.createMediaStreamSource(stream);
-        const bufLen = 2048;
-        processor = audioCtx.createScriptProcessor(bufLen,1,1);
-        isRecording.value = true;
-        processor.onaudioprocess = e => {
-          if(!isRecording.value) return;
-          const input = e.inputBuffer.getChannelData(0);
-          const pcm = new Int16Array(input.length);
-          for(let i=0;i<input.length;i++){
-            const s = Math.max(-1,Math.min(1,input[i]));
-            pcm[i] = s<0 ? s*32768 : s*32767;
-          }
-          if(ws && ws.readyState===WebSocket.OPEN) ws.send(pcm.buffer);
-        };
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
-        setStatus('录音中…','recording');
-      }catch(e){
-        addMsg('麦克风不可用: '+e.message,'bot','');
-      }
-    }
-
-    function stopRec(){
-      isRecording.value = false;
-      if(processor){ processor.disconnect(); processor=null; }
-      if(source){ source.disconnect(); source=null; }
-      if(audioCtx){ audioCtx.close(); audioCtx=null; }
-      if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-      audioQueue = []; audioPlaying.value = false; audioPaused.value = false;
-      if(currentAudio){ try{currentAudio.pause()}catch(e){}; currentAudio=null; }
-      if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'audio_end'}));
-      setStatus('处理中…','processing');
-    }
-
-    function stopRecIfRecording(){
-      if(isRecording.value) stopRec();
-    }
-
-    function switchMode(m){
-      wsMode.value = m;
-      connect(m);
-      for(let i=messages.length-1;i>=0;i--){
-        if(messages[i].cls==='system') messages.splice(i,1);
-      }
-      addMsg('已切换到 '+modes.find(x=>x.key===m).label,'system','');
-      if(tmpMsgIdx >= 0){ messages.splice(tmpMsgIdx,1); tmpMsgIdx=-1; }
-      const idx = messages.length - 1;
-      setTimeout(()=>{ if(messages[idx]?.cls==='system') messages.splice(idx,1); }, 2500);
-    }
-
-    onMounted(()=>{
-      connect('w2');
-    });
-
-    return {
-      chatRef, messages, status, wsMode, isRecording,
-      audioPaused, audioPlaying, togglePause,
-      inputText, sendText,
-      modes, statusText, statusClass,
-      startRec, stopRec, stopRecIfRecording, switchMode,
-    };
-  }
-}).mount('#vue-app');
-</script>
+<script src="/js/chat.js"></script>
 </body>
 </html>

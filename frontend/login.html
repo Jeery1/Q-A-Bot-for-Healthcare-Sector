@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 — 健康与医疗智能问答系统</title>
+<link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="icon">+</div>
+    <h2>健康与医疗智能问答</h2>
+    <p>AI 驱动的医疗健康咨询助手</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab" :class="{active:tab==='login'}" @click="switchTab('login')">登录</div>
+    <div class="tab" :class="{active:tab==='register'}" @click="switchTab('register')">注册</div>
+  </div>
+
+  <div class="form" v-if="tab==='login'">
+    <div class="form-group">
+      <label>用户名</label>
+      <input v-model="loginForm.username" type="text" placeholder="请输入用户名"
+             @keyup.enter="doLogin" :class="{error:loginErrors.username}">
+      <div class="error-msg">{{ loginErrors.username }}</div>
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input v-model="loginForm.password" type="password" placeholder="请输入密码"
+             @keyup.enter="doLogin" :class="{error:loginErrors.password}">
+      <div class="error-msg">{{ loginErrors.password }}</div>
+    </div>
+    <button class="submit-btn" @click="doLogin" :disabled="loginLoading">
+      {{ loginLoading ? '登录中…' : '登 录' }}
+    </button>
+    <div class="tip">没有账号？<a @click="switchTab('register')">去注册</a></div>
+  </div>
+
+  <div class="form" v-if="tab==='register'">
+    <div class="form-group">
+      <label>用户名</label>
+      <input v-model="registerForm.username" type="text" placeholder="3-50个字符"
+             :class="{error:registerErrors.username}">
+      <div class="error-msg">{{ registerErrors.username }}</div>
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input v-model="registerForm.password" type="password" placeholder="至少6个字符"
+             :class="{error:registerErrors.password}">
+      <div class="error-msg">{{ registerErrors.password }}</div>
+    </div>
+    <div class="form-group">
+      <label>确认密码</label>
+      <input v-model="registerForm.confirm" type="password" placeholder="再次输入密码"
+             :class="{error:registerErrors.confirm}">
+      <div class="error-msg">{{ registerErrors.confirm }}</div>
+    </div>
+    <button class="submit-btn" @click="doRegister" :disabled="registerLoading">
+      {{ registerLoading ? '注册中…' : '注 册' }}
+    </button>
+    <div class="tip">已有账号？<a @click="switchTab('login')">去登录</a></div>
+  </div>
+
+  <div class="toast" v-if="toast.show" :class="toast.type">{{ toast.text }}</div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="/js/login.js"></script>
+</body>
+</html>
