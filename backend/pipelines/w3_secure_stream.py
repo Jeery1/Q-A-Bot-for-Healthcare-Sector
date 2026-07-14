@@ -45,7 +45,7 @@ class W3SecureStreaming(BasePipeline):
 
         return await self.run_stream(_chunks(), _Null())
 
-    async def run_stream(self, audio_chunk_iter, ws, on_answer=None):
+    async def run_stream(self, audio_chunk_iter, ws, on_answer=None, history=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
         asr_text = ""
@@ -70,9 +70,9 @@ class W3SecureStreaming(BasePipeline):
             return PipelineResult(error="未识别到语音", timings=t)
 
         await warmup_task
-        return await self._safety_check_llm_tts(asr_text, ws, t, t_start, on_answer)
+        return await self._safety_check_llm_tts(asr_text, ws, t, t_start, on_answer, history)
 
-    async def run_text(self, text: str, ws, on_answer=None):
+    async def run_text(self, text: str, ws, on_answer=None, history=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
 
@@ -83,11 +83,11 @@ class W3SecureStreaming(BasePipeline):
         logger.info(f"[W3-text] input={text!r}")
         await ws.send_json({"type": "asr_final", "text": text})
         await self._warmup_llm()
-        return await self._safety_check_llm_tts(text, ws, t, t_start, on_answer)
+        return await self._safety_check_llm_tts(text, ws, t, t_start, on_answer, history)
 
     # ── 安全门控 + LLM + TTS ────────────────────────────
 
-    async def _safety_check_llm_tts(self, asr_text: str, ws, t: TimingMetrics, t_start: float, on_answer=None):
+    async def _safety_check_llm_tts(self, asr_text: str, ws, t: TimingMetrics, t_start: float, on_answer=None, history=None):
         safety = await self.llm.classify_safety(asr_text)
         is_safe = safety.get("safe", True)
         logger.info(f"[W3] safety check: safe={is_safe} reason={safety.get('reason')} "
@@ -193,13 +193,15 @@ class W3SecureStreaming(BasePipeline):
         token_count = 0
         sentence_count = 0
 
-        async for etype, text in self.llm.generate_stream(asr_text):
+        async for etype, text in self.llm.generate_stream(asr_text, history=history):
             if etype == "token":
                 if first_token:
                     t.llm_ttfb = time.perf_counter() - t_llm_start
                     first_token = False
                 if not rag_sent:
                     rag_sent = True
+                    if self.llm._rewritten_query and self.llm._rewritten_query != asr_text:
+                        await ws.send_json({"type": "rewrite_info", "raw": asr_text, "rewritten": self.llm._rewritten_query})
                     if self.llm._last_rag_docs:
                         await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
                 full_answer += text

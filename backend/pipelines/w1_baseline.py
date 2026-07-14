@@ -38,7 +38,7 @@ class W1Baseline(BasePipeline):
 
         return await self.run_stream(_chunks(), _Null())
 
-    async def run_stream(self, audio_chunk_iter, ws, on_answer=None):
+    async def run_stream(self, audio_chunk_iter, ws, on_answer=None, history=None):
         """Accumulate audio, one-shot ASR, LLM, send text, then TTS."""
         t = TimingMetrics()
         t_start = time.perf_counter()
@@ -58,11 +58,13 @@ class W1Baseline(BasePipeline):
             return PipelineResult(error="未识别到语音", timings=t)
 
         t0 = time.perf_counter()
-        answer_text = await self.llm.generate_once(asr_text)
+        answer_text = await self.llm.generate_once(asr_text, history=history)
         t.llm = time.perf_counter() - t0
         if on_answer:
             rag_docs = self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None
             await on_answer(asr_text, answer_text, rag_docs)
+        if self.llm._rewritten_query and self.llm._rewritten_query != asr_text:
+            await ws.send_json({"type": "rewrite_info", "raw": asr_text, "rewritten": self.llm._rewritten_query})
         if self.llm._last_rag_docs:
             await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
         await ws.send_json({"type": "answer", "text": answer_text})
@@ -86,7 +88,7 @@ class W1Baseline(BasePipeline):
                               tts_audio=tts_audio, timings=t,
                               rag_docs=self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None)
 
-    async def run_text(self, text: str, ws, on_answer=None):
+    async def run_text(self, text: str, ws, on_answer=None, history=None):
         t = TimingMetrics()
         t_start = time.perf_counter()
 
@@ -97,11 +99,13 @@ class W1Baseline(BasePipeline):
         logger.info(f"[W1-text] input={text!r}")
         await ws.send_json({"type": "asr_final", "text": text})
 
-        answer_text = await self.llm.generate_once(text)
+        answer_text = await self.llm.generate_once(text, history=history)
         t.llm = time.perf_counter() - t_start
         if on_answer:
             rag_docs = self.llm._last_rag_docs if hasattr(self.llm, '_last_rag_docs') else None
             await on_answer(text, answer_text, rag_docs)
+        if self.llm._rewritten_query and self.llm._rewritten_query != text:
+            await ws.send_json({"type": "rewrite_info", "raw": text, "rewritten": self.llm._rewritten_query})
         if self.llm._last_rag_docs:
             await ws.send_json({"type": "rag_info", "docs": self.llm._last_rag_docs})
         await ws.send_json({"type": "answer", "text": answer_text})

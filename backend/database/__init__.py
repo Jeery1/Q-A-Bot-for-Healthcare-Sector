@@ -21,6 +21,7 @@ engine = create_async_engine(
     DATABASE_URL,
     pool_size=MYSQL_POOL_SIZE,
     pool_recycle=MYSQL_POOL_RECYCLE,
+    pool_pre_ping=True,
     echo=False,
 )
 

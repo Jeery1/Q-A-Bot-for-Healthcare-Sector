@@ -96,10 +96,12 @@ createApp({
 
     const conversations = ref([]);
     const convId = ref(0);
+    const convPage = ref(1);
+    const hasMoreConv = ref(false);
 
-    async function loadConversations(){
+    async function loadConversations(page = 1){
       try{
-        const r = await fetch('/api/conversations?archived=0&size=50',{
+        const r = await fetch('/api/conversations?archived=0&size=30&page='+page,{
           headers:{Authorization:'Bearer '+accessToken.value}
         });
         if(!r.ok){
@@ -109,8 +111,22 @@ createApp({
           }
           return;
         }
-        conversations.value = await r.json();
+        const data = await r.json();
+        if(page === 1){
+          conversations.value = data;
+        }else{
+          conversations.value = conversations.value.concat(data);
+        }
+        hasMoreConv.value = data.length >= 30;
+        convPage.value = page;
       }catch(e){}
+    }
+
+    function onSidebarScroll(e){
+      const el = e.target;
+      if(el.scrollHeight - el.scrollTop - el.clientHeight < 30 && hasMoreConv.value){
+        loadConversations(convPage.value + 1);
+      }
     }
 
     function fmtTime(ts){
@@ -294,13 +310,16 @@ createApp({
       }else if(d.type === 'done'){
         setStatus('就绪','idle');
         audioPaused.value = false;
-        loadConversations();
       }else if(d.type === 'conv_created'){
         convId.value = d.conv_id;
+        loadConversations();
+      }else if(d.type === 'conv_updated'){
         loadConversations();
       }else if(d.type === 'rag_info'){
         messages.push({cls:'rag', docs: d.docs||[], expanded: false});
         scrollDown();
+      }else if(d.type === 'rewrite_info'){
+        addMsg('检索优化: '+d.rewritten,'system','');
       }
     }
 
@@ -419,7 +438,7 @@ createApp({
       modes, statusText, statusClass,
       startRec, stopRec, stopRecIfRecording, switchMode,
       conversations, convId, loadConversations, loadMessages,
-      fmtTime, switchConv, newConversation, deleteConv,
+      onSidebarScroll, fmtTime, switchConv, newConversation, deleteConv,
     };
   }
 }).mount('#vue-app');

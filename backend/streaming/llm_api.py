@@ -23,6 +23,8 @@ _CLASSIFY_PROMPT = """判断用户输入是否安全。仅回复 JSON: {"safe": 
 无关话题（须拒绝）: 天气、股票、电影、美食、体育、音乐、政治人物、游戏攻略、娱乐新闻
 正常提问: 内科、外科、儿科、妇产科、骨科、皮肤科、心血管、消化、呼吸、神经科、营养、康复、预防保健、疫苗接种、药物、常见病、慢性病、急救"""
 
+_REWRITE_PROMPT = """结合对话历史，将用户当前的医疗问题改写为适合知识库检索的中文关键词或短句。去口语化，提取核心症状、疾病名、药物名、科室名。仅输出改写后的检索语句，不要解释，不要加前缀。"""
+
 _SENSITIVE_KEYWORDS = [
     "非法行医", "无证行医", "假处方", "病人隐私", "器官交易",
     "违禁药物", "伪造病历", "教唆自残", "自杀方法", "毒品制作",
@@ -69,27 +71,32 @@ class StreamingLLM:
         self.retriever = retriever
         self.rag_top_k = rag_top_k
         self._last_rag_docs = []
+        self._rewritten_query = ""
         self.system_prompt = (
             "你是健康与医疗领域的智能助手，请用中文准确回答用户关于健康和医疗的问题。"
             "知识范围包括内科、外科、儿科、妇产科、骨科、皮肤科、神经科、心血管、消化、呼吸等常见科室，"
             "以及常见病防治、慢性病管理、营养膳食、康复护理、预防保健、疫苗接种、心理健康、药物常识、急救知识等。"
             "回答应简洁、专业、通俗易懂；请始终在回答末尾提醒用户：本回答仅供参考，不能替代专业医生的诊断与治疗。"
             "遇到超出医疗健康范围的问题或危险违规请求，应礼貌拒绝并引导到合规方向。"
+            "在你的历史消息中可能包含之前的多轮对话记录，最后一条标注为【当前用户提问】的消息才是需要你回答的内容。"
         )
 
-    async def _build_messages(self, prompt: str) -> list[dict]:
+    async def _build_messages(self, prompt: str, history: list[dict] | None = None) -> list[dict]:
         system_content = self.system_prompt
-        rag_context = await self._build_rag_context(prompt)
+        search_query = await self._rewrite_query(prompt, history)
+        self._rewritten_query = search_query
+        rag_context = await self._build_rag_context(search_query)
         if rag_context:
             system_content += (
                 "\n\n【医疗知识库参考资料】（以下为检索到的历史问答对，"
                 "仅作知识参考，并非当前用户提问。用户的实际问题在下方单独给出，请以此为准作答）：\n"
                 + rag_context
             )
-        return [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": prompt},
-        ]
+        messages = [{"role": "system", "content": system_content}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": f"【当前用户提问】{prompt}"})
+        return messages
 
     async def _build_rag_context(self, prompt: str) -> str:
         self._last_rag_docs = []
@@ -120,7 +127,36 @@ class StreamingLLM:
             logger.warning(f"RAG retrieval failed: {e}")
             return ""
 
-    async def generate_stream(self, prompt: str):
+    async def _rewrite_query(self, prompt: str, history: list[dict] | None = None) -> str:
+        if not self.api_key or self.api_key.startswith("sk-your-key"):
+            return prompt
+        messages = [{"role": "system", "content": _REWRITE_PROMPT}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": f"【当前用户提问】{prompt}"})
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "max_tokens": 64,
+                "temperature": 0,
+            }
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(f"{self.base_url}/v1/chat/completions",
+                                         headers=headers, json=payload)
+                data = resp.json()
+                rewritten = data["choices"][0]["message"]["content"].strip()
+                logger.info(f"[Rewrite] raw={prompt!r} => rewritten={rewritten!r}")
+                return rewritten if rewritten else prompt
+        except Exception as e:
+            logger.warning(f"[Rewrite] failed: {e!r}, fallback to raw query")
+            return prompt
+
+    async def generate_stream(self, prompt: str, history: list[dict] | None = None):
         """
         Yield (type, text) where type is "token" or "sentence".
         type="sentence" means a complete sentence ready for TTS.
@@ -131,7 +167,7 @@ class StreamingLLM:
         }
         payload = {
             "model": self.model,
-            "messages": await self._build_messages(prompt),
+            "messages": await self._build_messages(prompt, history),
             "stream": True,
             "max_tokens": 512,
             "temperature": 0.7,
@@ -174,7 +210,7 @@ class StreamingLLM:
 
         raise last_error
 
-    async def generate_once(self, prompt: str) -> str:
+    async def generate_once(self, prompt: str, history: list[dict] | None = None) -> str:
         """Non-streaming: return full response text."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -182,7 +218,7 @@ class StreamingLLM:
         }
         payload = {
             "model": self.model,
-            "messages": await self._build_messages(prompt),
+            "messages": await self._build_messages(prompt, history),
             "stream": False,
             "max_tokens": 512,
             "temperature": 0.7,

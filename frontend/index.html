@@ -14,7 +14,7 @@
       <span>对话历史</span>
     </div>
     <button class="sidebar-new-btn" @click="newConversation">+ 新建对话</button>
-    <div class="sidebar-list">
+    <div class="sidebar-list" @scroll="onSidebarScroll">
       <div class="empty-conv" v-if="conversations.length===0">暂无对话记录</div>
       <div v-for="c in conversations" :key="c.id"
            class="sidebar-item" :class="{active:convId===c.id}"

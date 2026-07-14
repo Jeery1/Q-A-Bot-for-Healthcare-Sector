@@ -162,6 +162,25 @@ async def websocket_endpoint(
             db.add(assistant_msg)
             conv.message_count = (conv.message_count or 0) + 2
             await db.commit()
+            await ws.send_json({"type": "conv_updated", "conv_id": current_conv_id})
+
+    async def fetch_history() -> list[dict] | None:
+        if current_conv_id == 0:
+            return None
+        async with async_session_factory() as db:
+            result = await db.execute(
+                select(Message.role, Message.content)
+                .where(Message.conversation_id == current_conv_id)
+                .order_by(Message.created_at.desc())
+                .limit(10)
+            )
+            rows = result.all()
+            if not rows:
+                return None
+            history = []
+            for role, content in reversed(rows):
+                history.append({"role": role, "content": content})
+            return history
 
     try:
         while True:
@@ -173,20 +192,23 @@ async def websocket_endpoint(
                 if data.get("type") == "text_query":
                     text = data.get("text", "").strip()
                     if text:
-                        await pipeline.run_text(text, ws, on_answer=save_round)
+                        history = await fetch_history()
+                        await pipeline.run_text(text, ws, on_answer=save_round, history=history)
                     continue
                 async def _single(msg=msg):
                     if "text" in msg:
                         yield (b"", True)
                     elif "bytes" in msg:
                         yield (msg["bytes"], False)
-                await pipeline.run_stream(_single(), ws, on_answer=save_round)
+                history = await fetch_history()
+                await pipeline.run_stream(_single(), ws, on_answer=save_round, history=history)
             elif "bytes" in msg:
                 async def _audio_iter():
                     yield (msg["bytes"], False)
                     async for chunk in _iter_audio_chunks(ws):
                         yield chunk
-                await pipeline.run_stream(_audio_iter(), ws, on_answer=save_round)
+                history = await fetch_history()
+                await pipeline.run_stream(_audio_iter(), ws, on_answer=save_round, history=history)
 
     except (WebSocketDisconnect, RuntimeError):
         pass
